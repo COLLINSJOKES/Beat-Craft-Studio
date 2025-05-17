@@ -1,0 +1,1775 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BeatCraft Studio | Online Music Production</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        primary: '#6d28d9',
+                        secondary: '#a78bfa',
+                        dark: '#0f172a',
+                        darker: '#020617'
+                    },
+                    animation: {
+                        'pulse-slow': 'pulse 3s cubic-bezier(0.4, 0, 0.6, 1) infinite',
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #020617;
+            color: #f8fafc;
+            overflow-x: hidden;
+        }
+        
+        .piano-key {
+            transition: all 0.1s ease;
+            user-select: none;
+        }
+        
+        .piano-key.white {
+            background-color: #f8fafc;
+            color: #020617;
+        }
+        
+        .piano-key.black {
+            background-color: #020617;
+            color: #f8fafc;
+            z-index: 2;
+        }
+        
+        .piano-key.active {
+            background-color: #6d28d9;
+            transform: scale(0.98);
+        }
+        
+        .piano-key.black.active {
+            background-color: #a78bfa;
+        }
+        
+        .sequencer-cell {
+            transition: all 0.2s ease;
+        }
+        
+        .sequencer-cell.active {
+            background-color: #6d28d9;
+        }
+        
+        .waveform-display {
+            background: linear-gradient(90deg, #1e293b 0%, #334155 100%);
+        }
+        
+        .track:hover .track-controls {
+            opacity: 1;
+        }
+        
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #6d28d9;
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7c3aed;
+        }
+        
+        /* Pulse animation for recording */
+        @keyframes recording-pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.7);
+            }
+            70% {
+                box-shadow: 0 0 0 10px rgba(239, 68, 68, 0);
+            }
+            100% {
+                box-shadow: 0 0 0 0 rgba(239, 68, 68, 0);
+            }
+        }
+        
+        .recording {
+            animation: recording-pulse 1.5s infinite;
+        }
+        
+        /* Recording studio styles */
+        .recording-meter {
+            background: linear-gradient(to right, #10b981, #f59e0b, #ef4444);
+        }
+        
+        .recording-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background-color: #ef4444;
+            animation: blink 1s infinite;
+        }
+        
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Vertical slider */
+        input[type=range][orient=vertical] {
+            writing-mode: bt-lr; /* IE */
+            -webkit-appearance: slider-vertical; /* Chromium */
+            width: 8px;
+            height: 100px;
+            padding: 0 5px;
+        }
+        
+        /* Beat and instrument library styles */
+        .beat-card {
+            transition: all 0.2s ease;
+        }
+        
+        .beat-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        
+        .instrument-card {
+            transition: all 0.2s ease;
+        }
+        
+        .instrument-card:hover {
+            transform: scale(1.02);
+        }
+        
+        .play-button {
+            transition: all 0.2s ease;
+        }
+        
+        .play-button:hover {
+            transform: scale(1.1);
+        }
+        
+        /* Library modal */
+        .library-modal {
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+    <!-- Auth Modal -->
+    <div id="authModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Welcome to BeatCraft</h2>
+                <button onclick="closeAuthModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="loginForm">
+                <div class="mb-4">
+                    <label class="block text-slate-300 mb-2">Email</label>
+                    <input type="email" id="loginEmail" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-slate-300 mb-2">Password</label>
+                    <input type="password" id="loginPassword" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button onclick="login()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg mb-4 transition">
+                    Sign In
+                </button>
+                <p class="text-center text-slate-400">
+                    Don't have an account? 
+                    <button onclick="showRegisterForm()" class="text-purple-400 hover:text-purple-300">Register</button>
+                </p>
+            </div>
+            
+            <div id="registerForm" class="hidden">
+                <div class="mb-4">
+                    <label class="block text-slate-300 mb-2">Username</label>
+                    <input type="text" id="registerUsername" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="mb-4">
+                    <label class="block text-slate-300 mb-2">Email</label>
+                    <input type="email" id="registerEmail" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <div class="mb-6">
+                    <label class="block text-slate-300 mb-2">Password</label>
+                    <input type="password" id="registerPassword" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                </div>
+                <button onclick="register()" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg mb-4 transition">
+                    Create Account
+                </button>
+                <p class="text-center text-slate-400">
+                    Already have an account? 
+                    <button onclick="showLoginForm()" class="text-purple-400 hover:text-purple-300">Sign In</button>
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Save Modal -->
+    <div id="saveModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Save Project</h2>
+                <button onclick="closeSaveModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="mb-4">
+                <label class="block text-slate-300 mb-2">Project Name</label>
+                <input type="text" id="projectName" class="w-full bg-slate-700 rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-purple-500">
+            </div>
+            
+            <div class="flex justify-end space-x-3">
+                <button onclick="closeSaveModal()" class="px-4 py-2 rounded-lg bg-slate-700 hover:bg-slate-600 transition">
+                    Cancel
+                </button>
+                <button onclick="saveProject()" class="px-4 py-2 rounded-lg bg-purple-600 hover:bg-purple-700 transition">
+                    Save
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load Project Modal -->
+    <div id="loadModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-2xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Your Projects</h2>
+                <button onclick="closeLoadModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div id="projectsList" class="max-h-96 overflow-y-auto">
+                <!-- Projects will be loaded here -->
+                <div class="text-center py-10 text-slate-500">
+                    <i class="fas fa-spinner fa-spin text-3xl mb-3"></i>
+                    <p>Loading your projects...</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recording Studio Modal -->
+    <div id="recordingStudioModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-4xl">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Recording Studio</h2>
+                <button onclick="closeRecordingStudio()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <!-- Input Sources -->
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Input Sources</h3>
+                    
+                    <div class="space-y-4">
+                        <div>
+                            <label class="block text-slate-300 mb-2">Microphone</label>
+                            <select id="micSource" class="w-full bg-slate-600 rounded px-3 py-2">
+                                <option value="">Select Microphone</option>
+                            </select>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-slate-300 mb-2">Input Level</label>
+                            <input type="range" id="micGain" min="0" max="100" value="50" class="w-full">
+                        </div>
+                        
+                        <div class="flex items-center space-x-2">
+                            <div class="recording-meter h-2 flex-1 rounded-full overflow-hidden">
+                                <div id="micLevelMeter" class="h-full bg-green-500 w-0"></div>
+                            </div>
+                            <span id="micLevelValue" class="text-xs text-slate-400">0%</span>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recording Controls -->
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Recording Controls</h3>
+                    
+                    <div class="space-y-4">
+                        <div class="flex justify-center space-x-4">
+                            <button id="recordButton" onclick="startRecording()" class="bg-red-600 hover:bg-red-700 w-12 h-12 rounded-full flex items-center justify-center text-white">
+                                <i class="fas fa-circle"></i>
+                            </button>
+                            <button id="stopButton" onclick="stopRecording()" class="bg-slate-600 hover:bg-slate-500 w-12 h-12 rounded-full flex items-center justify-center text-white">
+                                <i class="fas fa-stop"></i>
+                            </button>
+                        </div>
+                        
+                        <div class="flex items-center justify-center space-x-2">
+                            <div class="recording-indicator"></div>
+                            <span id="recordingStatus" class="text-sm">Ready to record</span>
+                        </div>
+                        
+                        <div class="pt-4">
+                            <label class="block text-slate-300 mb-2">Recording Name</label>
+                            <input type="text" id="recordingName" value="My Recording" class="w-full bg-slate-600 rounded px-3 py-2">
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Recordings List -->
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4">Your Recordings</h3>
+                    
+                    <div id="recordingsList" class="space-y-2 max-h-64 overflow-y-auto">
+                        <div class="text-center py-8 text-slate-500">
+                            <i class="fas fa-microphone-alt text-2xl mb-2"></i>
+                            <p class="text-sm">No recordings yet</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Recording Visualization -->
+            <div class="mt-6 bg-slate-700 rounded-lg p-4">
+                <h3 class="text-lg font-semibold mb-4">Recording Preview</h3>
+                <div id="waveformVisualizer" class="waveform-display h-32 rounded-lg">
+                    <canvas id="waveformCanvas" class="w-full h-full"></canvas>
+                </div>
+                
+                <div class="flex items-center justify-between mt-4">
+                    <span id="recordingTime" class="text-sm text-slate-400">0:00</span>
+                    <div class="flex-1 mx-4">
+                        <input type="range" id="recordingPlayhead" min="0" max="100" value="0" class="w-full">
+                    </div>
+                    <span id="recordingDuration" class="text-sm text-slate-400">0:00</span>
+                </div>
+                
+                <div class="flex justify-center space-x-4 mt-4">
+                    <button id="playRecordingBtn" onclick="playRecording()" class="bg-purple-600 hover:bg-purple-700 px-4 py-2 rounded flex items-center">
+                        <i class="fas fa-play mr-2"></i> Play
+                    </button>
+                    <button id="saveRecordingBtn" onclick="saveRecording()" class="bg-green-600 hover:bg-green-700 px-4 py-2 rounded flex items-center">
+                        <i class="fas fa-save mr-2"></i> Save to Project
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Free Beats & Instruments Library Modal -->
+    <div id="libraryModal" class="fixed inset-0 bg-black bg-opacity-80 z-50 flex items-center justify-center hidden">
+        <div class="bg-slate-800 rounded-xl p-6 w-full max-w-6xl library-modal">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Free Beats & Instruments</h2>
+                <button onclick="closeLibraryModal()" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Free Beats Section -->
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-drum mr-2"></i> Free Beats
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Beat cards will be added here -->
+                        <div class="beat-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadBeat('trap-beat')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Trap Beat</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">120 BPM • 4 bars</p>
+                        </div>
+                        
+                        <div class="beat-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadBeat('lofi-beat')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Lofi Beat</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">85 BPM • 8 bars</p>
+                        </div>
+                        
+                        <div class="beat-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadBeat('hiphop-beat')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Hip Hop Beat</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">95 BPM • 16 bars</p>
+                        </div>
+                        
+                        <div class="beat-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadBeat('edm-beat')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">EDM Beat</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">128 BPM • 32 bars</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Free Instruments Section -->
+                <div class="bg-slate-700 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-4 flex items-center">
+                        <i class="fas fa-guitar mr-2"></i> Free Instruments
+                    </h3>
+                    
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <!-- Instrument cards will be added here -->
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('grand-piano')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Grand Piano</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">Acoustic • 88 keys</p>
+                        </div>
+                        
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('synth-lead')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Synth Lead</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">Electronic • Analog</p>
+                        </div>
+                        
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('electric-bass')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Electric Bass</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">4-string • Fingered</p>
+                        </div>
+                        
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('drum-kit')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Drum Kit</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">Acoustic • 12-piece</p>
+                        </div>
+                        
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('strings')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">String Ensemble</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">Orchestral • Symphonic</p>
+                        </div>
+                        
+                        <div class="instrument-card bg-slate-600 rounded-lg p-3 cursor-pointer" onclick="loadInstrument('electric-guitar')">
+                            <div class="flex justify-between items-center mb-2">
+                                <h4 class="font-medium">Electric Guitar</h4>
+                                <button class="play-button bg-purple-600 hover:bg-purple-700 w-8 h-8 rounded-full flex items-center justify-center text-white">
+                                    <i class="fas fa-play text-xs"></i>
+                                </button>
+                            </div>
+                            <p class="text-xs text-slate-400">6-string • Clean</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-6 text-center text-slate-400 text-sm">
+                <p>All beats and instruments are royalty-free for use in your projects</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main App -->
+    <header class="bg-slate-900 border-b border-slate-800">
+        <div class="container mx-auto px-4 py-3 flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-music text-purple-500 text-2xl"></i>
+                <h1 class="text-xl font-bold">BeatCraft Studio</h1>
+            </div>
+            
+            <div class="flex items-center space-x-4">
+                <div id="userInfo" class="hidden">
+                    <span id="usernameDisplay" class="text-slate-300"></span>
+                    <button onclick="logout()" class="ml-3 text-slate-400 hover:text-white">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
+                </div>
+                <button id="authButton" onclick="openAuthModal()" class="bg-purple-600 hover:bg-purple-700 px-4 py-1 rounded-lg transition">
+                    Sign In
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-1 overflow-hidden">
+        <!-- Sidebar -->
+        <aside class="w-16 bg-slate-900 border-r border-slate-800 flex flex-col items-center py-4 space-y-6">
+            <button onclick="newProject()" class="text-slate-300 hover:text-white transition" title="New Project">
+                <i class="fas fa-plus text-xl"></i>
+            </button>
+            <button onclick="openSaveModal()" class="text-slate-300 hover:text-white transition" title="Save Project">
+                <i class="fas fa-save text-xl"></i>
+            </button>
+            <button onclick="openLoadModal()" class="text-slate-300 hover:text-white transition" title="Load Project">
+                <i class="fas fa-folder-open text-xl"></i>
+            </button>
+            <div class="border-t border-slate-800 w-8 mx-auto"></div>
+            <button onclick="toggleMetronome()" id="metronomeBtn" class="text-slate-300 hover:text-white transition" title="Metronome">
+                <i class="fas fa-stopwatch text-xl"></i>
+            </button>
+            <button onclick="toggleRecording()" id="recordBtn" class="text-slate-300 hover:text-red-500 transition" title="Record">
+                <i class="fas fa-circle text-xl"></i>
+            </button>
+            <div class="border-t border-slate-800 w-8 mx-auto"></div>
+            <button onclick="openInstrumentMenu()" class="text-slate-300 hover:text-white transition" title="Add Instrument">
+                <i class="fas fa-guitar text-xl"></i>
+            </button>
+            <button onclick="openDrumMachine()" class="text-slate-300 hover:text-white transition" title="Drum Machine">
+                <i class="fas fa-drum text-xl"></i>
+            </button>
+            <button onclick="openPianoRoll()" class="text-slate-300 hover:text-white transition" title="Piano Roll">
+                <i class="fas fa-sliders-h text-xl"></i>
+            </button>
+            <button onclick="openRecordingStudio()" class="text-slate-300 hover:text-white transition" title="Recording Studio">
+                <i class="fas fa-microphone text-xl"></i>
+            </button>
+            <div class="border-t border-slate-800 w-8 mx-auto"></div>
+            <button onclick="openLibraryModal()" class="text-slate-300 hover:text-purple-400 transition" title="Free Beats & Instruments">
+                <i class="fas fa-gift text-xl"></i>
+            </button>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="flex-1 overflow-auto">
+            <!-- Transport Controls -->
+            <div class="bg-slate-800 p-3 border-b border-slate-700">
+                <div class="flex items-center justify-center space-x-4">
+                    <button onclick="stopPlayback()" class="text-slate-300 hover:text-white">
+                        <i class="fas fa-stop text-xl"></i>
+                    </button>
+                    <button onclick="startPlayback()" class="bg-purple-600 hover:bg-purple-700 w-12 h-12 rounded-full flex items-center justify-center text-white">
+                        <i class="fas fa-play text-xl"></i>
+                    </button>
+                    <button onclick="toggleLoop()" id="loopBtn" class="text-slate-300 hover:text-white">
+                        <i class="fas fa-redo text-xl"></i>
+                    </button>
+                </div>
+                
+                <div class="flex items-center justify-between mt-4 px-4">
+                    <span id="currentTime" class="text-slate-400">0:00</span>
+                    <div class="flex-1 mx-4">
+                        <input type="range" id="playhead" min="0" max="100" value="0" class="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <span id="totalTime" class="text-slate-400">4:00</span>
+                </div>
+                
+                <div class="flex items-center justify-between mt-2 px-4">
+                    <div class="flex items-center">
+                        <span class="text-slate-400 mr-2">BPM:</span>
+                        <input type="number" id="bpm" value="120" min="40" max="300" class="w-16 bg-slate-700 rounded px-2 py-1 text-center">
+                    </div>
+                    <div class="flex items-center">
+                        <span class="text-slate-400 mr-2">Volume:</span>
+                        <input type="range" id="masterVolume" min="0" max="100" value="80" class="w-24 h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Track List -->
+            <div id="trackList" class="p-4 space-y-4">
+                <!-- Example Track (will be generated dynamically) -->
+                <div class="track bg-slate-800 rounded-lg overflow-hidden border border-slate-700">
+                    <div class="flex items-center px-4 py-3 bg-slate-900">
+                        <div class="flex items-center flex-1">
+                            <select class="bg-slate-700 text-white rounded px-2 py-1 mr-3">
+                                <option>Synth</option>
+                                <option>Bass</option>
+                                <option>Piano</option>
+                                <option>Guitar</option>
+                                <option>Drums</option>
+                            </select>
+                            <input type="text" value="Lead Synth" class="bg-slate-700 text-white rounded px-2 py-1 flex-1">
+                        </div>
+                        <div class="track-controls opacity-0 transition-opacity flex space-x-2">
+                            <button class="text-slate-300 hover:text-white">
+                                <i class="fas fa-solo"></i>
+                            </button>
+                            <button class="text-slate-300 hover:text-white">
+                                <i class="fas fa-mute"></i>
+                            </button>
+                            <button class="text-slate-300 hover:text-red-500">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="flex mb-2">
+                            <div class="w-16 flex-shrink-0">
+                                <input type="range" min="0" max="100" value="80" class="w-full h-1 bg-slate-600 rounded-lg appearance-none cursor-pointer vertical-slider" orient="vertical">
+                            </div>
+                            <div class="flex-1 overflow-x-auto">
+                                <div class="sequencer-grid h-16 bg-slate-900 rounded">
+                                    <!-- Sequencer cells will be here -->
+                                </div>
+                            </div>
+                        </div>
+                        <div class="waveform-display h-20 rounded-lg mt-2">
+                            <!-- Waveform visualization will be here -->
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Piano Roll (hidden by default) -->
+            <div id="pianoRoll" class="hidden fixed inset-0 bg-slate-900 z-40 p-6 overflow-auto">
+                <div class="flex justify-between items-center mb-6">
+                    <h2 class="text-2xl font-bold">Piano Roll</h2>
+                    <button onclick="closePianoRoll()" class="text-slate-400 hover:text-white text-xl">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+                
+                <div class="bg-slate-800 rounded-lg p-4 mb-4">
+                    <div class="flex mb-4">
+                        <div class="w-16 flex-shrink-0">
+                            <!-- Piano keys -->
+                            <div class="piano-keys">
+                                <!-- Will be generated dynamically -->
+                            </div>
+                        </div>
+                        <div class="flex-1 overflow-x-auto">
+                            <div class="piano-roll-grid bg-slate-900 rounded">
+                                <!-- Piano roll notes will be here -->
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="flex justify-between">
+                        <div class="flex space-x-2">
+                            <button class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">
+                                <i class="fas fa-pencil-alt mr-1"></i> Draw
+                            </button>
+                            <button class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">
+                                <i class="fas fa-eraser mr-1"></i> Erase
+                            </button>
+                            <button class="bg-slate-700 hover:bg-slate-600 px-3 py-1 rounded">
+                                <i class="fas fa-cut mr-1"></i> Split
+                            </button>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded">
+                                <i class="fas fa-save mr-1"></i> Save Pattern
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="bg-slate-800 rounded-lg p-4">
+                    <h3 class="text-lg font-semibold mb-3">Virtual Keyboard</h3>
+                    <div class="virtual-keyboard">
+                        <!-- Will be generated dynamically -->
+                    </div>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <script>
+        // Audio context and global variables
+        let audioContext;
+        let isPlaying = false;
+        let currentProject = {
+            name: 'Untitled Project',
+            bpm: 120,
+            tracks: []
+        };
+        
+        let currentUser = null;
+        let isRecording = false;
+        let isLooping = false;
+        let isMetronomeOn = false;
+        
+        // Recording studio variables
+        let mediaRecorder;
+        let audioChunks = [];
+        let audioStream;
+        let audioAnalyser;
+        let currentRecording = null;
+        let recordings = [];
+        let audioVisualizationInterval;
+        let canvasContext;
+        let isPlayingRecording = false;
+        let audioElement;
+        
+        // Free beats and instruments
+        const freeBeats = {
+            'trap-beat': {
+                name: 'Trap Beat',
+                bpm: 120,
+                length: '4 bars',
+                description: 'Hard-hitting trap beat with 808s and hi-hats',
+                pattern: [1,0,0,1, 0,0,1,0, 1,0,0,0, 0,1,0,0] // Simplified pattern for demo
+            },
+            'lofi-beat': {
+                name: 'Lofi Beat',
+                bpm: 85,
+                length: '8 bars',
+                description: 'Chill lofi hip hop beat with vinyl crackle',
+                pattern: [1,0,1,0, 1,0,1,0, 1,0,1,0, 1,0,1,0]
+            },
+            'hiphop-beat': {
+                name: 'Hip Hop Beat',
+                bpm: 95,
+                length: '16 bars',
+                description: 'Classic boom bap hip hop drum pattern',
+                pattern: [1,0,0,0, 0,0,1,0, 0,1,0,0, 0,0,1,0]
+            },
+            'edm-beat': {
+                name: 'EDM Beat',
+                bpm: 128,
+                length: '32 bars',
+                description: 'Four-on-the-floor EDM kick pattern',
+                pattern: [1,0,0,0, 1,0,0,0, 1,0,0,0, 1,0,0,0]
+            }
+        };
+        
+        const freeInstruments = {
+            'grand-piano': {
+                name: 'Grand Piano',
+                type: 'acoustic',
+                range: '88 keys',
+                description: 'Concert grand piano with rich tone'
+            },
+            'synth-lead': {
+                name: 'Synth Lead',
+                type: 'electronic',
+                range: '5 octaves',
+                description: 'Analog-style synthesizer lead'
+            },
+            'electric-bass': {
+                name: 'Electric Bass',
+                type: 'string',
+                range: '4 strings',
+                description: 'Fingered electric bass guitar'
+            },
+            'drum-kit': {
+                name: 'Drum Kit',
+                type: 'percussion',
+                range: '12 pieces',
+                description: 'Acoustic drum kit with cymbals'
+            },
+            'strings': {
+                name: 'String Ensemble',
+                type: 'orchestral',
+                range: 'Full section',
+                description: 'Symphonic string section'
+            },
+            'electric-guitar': {
+                name: 'Electric Guitar',
+                type: 'string',
+                range: '6 strings',
+                description: 'Clean electric guitar'
+            }
+        };
+        
+        // Initialize the app
+        document.addEventListener('DOMContentLoaded', function() {
+            try {
+                // Initialize Web Audio API
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                
+                // Check if user is already logged in (from localStorage)
+                checkAuthStatus();
+                
+                // Initialize piano roll
+                initPianoRoll();
+                
+                // Initialize transport controls
+                initTransportControls();
+                
+                // Initialize recording studio
+                initRecordingStudio();
+                
+                // Add event listeners
+                document.getElementById('bpm').addEventListener('change', updateBPM);
+                document.getElementById('masterVolume').addEventListener('input', updateMasterVolume);
+                
+                console.log('BeatCraft Studio initialized successfully');
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                alert('There was an error initializing the audio engine. Please try refreshing the page.');
+            }
+        });
+        
+        // Library Modal Functions
+        function openLibraryModal() {
+            document.getElementById('libraryModal').classList.remove('hidden');
+        }
+        
+        function closeLibraryModal() {
+            document.getElementById('libraryModal').classList.add('hidden');
+        }
+        
+        function loadBeat(beatId) {
+            const beat = freeBeats[beatId];
+            if (!beat) return;
+            
+            // In a real app, we would load the actual audio files and patterns
+            console.log('Loading beat:', beat.name);
+            
+            // Update BPM to match the beat
+            document.getElementById('bpm').value = beat.bpm;
+            currentProject.bpm = beat.bpm;
+            
+            // Add a drum track with the beat pattern
+            const drumTrack = {
+                id: 'track_' + Math.random().toString(36).substr(2, 9),
+                name: beat.name + ' Drums',
+                type: 'drums',
+                volume: 80,
+                muted: false,
+                solo: false,
+                pattern: beat.pattern
+            };
+            
+            currentProject.tracks.push(drumTrack);
+            renderTrack(drumTrack);
+            
+            // Show success message
+            alert(`"${beat.name}" beat loaded successfully!`);
+        }
+        
+        function loadInstrument(instrumentId) {
+            const instrument = freeInstruments[instrumentId];
+            if (!instrument) return;
+            
+            console.log('Loading instrument:', instrument.name);
+            
+            // Add a new track with this instrument
+            const newTrack = {
+                id: 'track_' + Math.random().toString(36).substr(2, 9),
+                name: instrument.name,
+                type: instrument.type === 'percussion' ? 'drums' : 
+                      instrument.type === 'string' ? 'guitar' :
+                      instrument.type === 'orchestral' ? 'strings' : 'synth',
+                volume: 80,
+                muted: false,
+                solo: false,
+                patterns: []
+            };
+            
+            currentProject.tracks.push(newTrack);
+            renderTrack(newTrack);
+            
+            // Show success message
+            alert(`"${instrument.name}" instrument loaded successfully!`);
+        }
+        
+        // Recording Studio Functions
+        function initRecordingStudio() {
+            // Get canvas context for visualization
+            const canvas = document.getElementById('waveformCanvas');
+            canvasContext = canvas.getContext('2d');
+            
+            // Set canvas dimensions
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+            
+            // Load microphone sources when studio is opened
+            document.getElementById('recordingStudioModal').addEventListener('click', function(e) {
+                if (e.target === this) {
+                    loadMicrophoneSources();
+                }
+            });
+        }
+        
+        function openRecordingStudio() {
+            document.getElementById('recordingStudioModal').classList.remove('hidden');
+            loadMicrophoneSources();
+        }
+        
+        function closeRecordingStudio() {
+            document.getElementById('recordingStudioModal').classList.add('hidden');
+            stopRecording();
+            stopAudioVisualization();
+        }
+        
+        function loadMicrophoneSources() {
+            // In a real app, we would enumerate actual devices
+            // This is a simulation for the demo
+            const micSelect = document.getElementById('micSource');
+            micSelect.innerHTML = '<option value="">Select Microphone</option>';
+            
+            // Simulate finding microphones
+            setTimeout(() => {
+                micSelect.innerHTML += `
+                    <option value="default">Default Microphone</option>
+                    <option value="usb">USB Microphone</option>
+                    <option value="headset">Headset Microphone</option>
+                `;
+                
+                // Set up mic level monitoring
+                setupMicLevelMonitoring();
+            }, 500);
+        }
+        
+        function setupMicLevelMonitoring() {
+            // Simulate mic level monitoring
+            setInterval(() => {
+                if (!mediaRecorder) {
+                    const randomLevel = Math.floor(Math.random() * 30);
+                    updateMicLevel(randomLevel);
+                }
+            }, 100);
+        }
+        
+        function updateMicLevel(level) {
+            const micLevelMeter = document.getElementById('micLevelMeter');
+            const micLevelValue = document.getElementById('micLevelValue');
+            
+            // Cap at 100%
+            const displayLevel = Math.min(level, 100);
+            
+            micLevelMeter.style.width = `${displayLevel}%`;
+            micLevelValue.textContent = `${displayLevel}%`;
+            
+            // Change color based on level
+            if (displayLevel > 80) {
+                micLevelMeter.style.backgroundColor = '#ef4444'; // red
+            } else if (displayLevel > 50) {
+                micLevelMeter.style.backgroundColor = '#f59e0b'; // yellow
+            } else {
+                micLevelMeter.style.backgroundColor = '#10b981'; // green
+            }
+        }
+        
+        function startRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') return;
+            
+            // Reset recording data
+            audioChunks = [];
+            currentRecording = {
+                id: 'rec_' + Math.random().toString(36).substr(2, 9),
+                name: document.getElementById('recordingName').value || 'My Recording',
+                date: new Date().toISOString(),
+                duration: 0,
+                audioUrl: null
+            };
+            
+            // Update UI
+            document.getElementById('recordingStatus').textContent = 'Recording...';
+            document.getElementById('recordButton').classList.add('recording');
+            document.getElementById('stopButton').disabled = false;
+            
+            // Simulate recording (in a real app, we'd use actual MediaRecorder)
+            console.log('Recording started');
+            
+            // Start audio visualization
+            startAudioVisualization();
+            
+            // Simulate recording progress
+            let seconds = 0;
+            const recordingInterval = setInterval(() => {
+                seconds++;
+                currentRecording.duration = seconds;
+                document.getElementById('recordingTime').textContent = formatTime(seconds);
+                
+                // Simulate adding audio data
+                if (seconds % 2 === 0) {
+                    audioChunks.push(new Blob([new Uint8Array(1024)], { type: 'audio/wav' }));
+                }
+            }, 1000);
+            
+            // Store the interval so we can clear it later
+            currentRecording.interval = recordingInterval;
+        }
+        
+        function stopRecording() {
+            if (!currentRecording) return;
+            
+            // Clear the recording interval
+            clearInterval(currentRecording.interval);
+            
+            // Update UI
+            document.getElementById('recordingStatus').textContent = 'Recording stopped';
+            document.getElementById('recordButton').classList.remove('recording');
+            document.getElementById('stopButton').disabled = true;
+            
+            // Create audio URL from chunks
+            const audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+            currentRecording.audioUrl = URL.createObjectURL(audioBlob);
+            
+            // Add to recordings list
+            recordings.push(currentRecording);
+            updateRecordingsList();
+            
+            // Draw waveform
+            drawWaveform();
+            
+            console.log('Recording stopped', currentRecording);
+        }
+        
+        function updateRecordingsList() {
+            const recordingsList = document.getElementById('recordingsList');
+            
+            if (recordings.length === 0) {
+                recordingsList.innerHTML = `
+                    <div class="text-center py-8 text-slate-500">
+                        <i class="fas fa-microphone-alt text-2xl mb-2"></i>
+                        <p class="text-sm">No recordings yet</p>
+                    </div>
+                `;
+                return;
+            }
+            
+            let html = '';
+            recordings.forEach(rec => {
+                html += `
+                    <div class="bg-slate-600 rounded p-3 flex justify-between items-center">
+                        <div>
+                            <h4 class="font-medium">${rec.name}</h4>
+                            <p class="text-xs text-slate-400">${formatTime(rec.duration)} • ${new Date(rec.date).toLocaleString()}</p>
+                        </div>
+                        <div class="flex space-x-2">
+                            <button onclick="playSpecificRecording('${rec.id}')" class="text-slate-300 hover:text-purple-400">
+                                <i class="fas fa-play"></i>
+                            </button>
+                            <button onclick="deleteRecording('${rec.id}')" class="text-slate-300 hover:text-red-400">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            recordingsList.innerHTML = html;
+        }
+        
+        function playSpecificRecording(recordingId) {
+            const recording = recordings.find(r => r.id === recordingId);
+            if (!recording) return;
+            
+            if (isPlayingRecording) {
+                stopRecordingPlayback();
+            }
+            
+            // In a real app, we would use the Web Audio API to play the recording
+            console.log('Playing recording:', recording.name);
+            
+            // Simulate playback
+            audioElement = new Audio(recording.audioUrl);
+            audioElement.play();
+            isPlayingRecording = true;
+            
+            // Update UI
+            document.getElementById('playRecordingBtn').innerHTML = '<i class="fas fa-pause mr-2"></i> Pause';
+            document.getElementById('playRecordingBtn').onclick = pauseRecording;
+            
+            // Update playhead
+            let currentTime = 0;
+            const playheadInterval = setInterval(() => {
+                if (currentTime >= recording.duration) {
+                    clearInterval(playheadInterval);
+                    stopRecordingPlayback();
+                    return;
+                }
+                
+                currentTime++;
+                document.getElementById('recordingPlayhead').value = (currentTime / recording.duration) * 100;
+                document.getElementById('recordingTime').textContent = formatTime(currentTime);
+            }, 1000);
+            
+            recording.playheadInterval = playheadInterval;
+        }
+        
+        function playRecording() {
+            if (!currentRecording) return;
+            
+            if (isPlayingRecording) {
+                pauseRecording();
+                return;
+            }
+            
+            playSpecificRecording(currentRecording.id);
+        }
+        
+        function pauseRecording() {
+            if (!isPlayingRecording || !audioElement) return;
+            
+            // In a real app, we would pause the audio element
+            audioElement.pause();
+            isPlayingRecording = false;
+            
+            // Update UI
+            document.getElementById('playRecordingBtn').innerHTML = '<i class="fas fa-play mr-2"></i> Play';
+            document.getElementById('playRecordingBtn').onclick = playRecording;
+            
+            // Clear playhead interval if exists
+            if (currentRecording.playheadInterval) {
+                clearInterval(currentRecording.playheadInterval);
+            }
+        }
+        
+        function stopRecordingPlayback() {
+            if (!isPlayingRecording) return;
+            
+            // In a real app, we would stop the audio element
+            if (audioElement) {
+                audioElement.pause();
+                audioElement.currentTime = 0;
+            }
+            
+            isPlayingRecording = false;
+            
+            // Update UI
+            document.getElementById('playRecordingBtn').innerHTML = '<i class="fas fa-play mr-2"></i> Play';
+            document.getElementById('playRecordingBtn').onclick = playRecording;
+            document.getElementById('recordingPlayhead').value = 0;
+            document.getElementById('recordingTime').textContent = formatTime(0);
+            
+            // Clear playhead interval if exists
+            if (currentRecording && currentRecording.playheadInterval) {
+                clearInterval(currentRecording.playheadInterval);
+            }
+        }
+        
+        function deleteRecording(recordingId) {
+            if (!confirm('Are you sure you want to delete this recording?')) return;
+            
+            recordings = recordings.filter(r => r.id !== recordingId);
+            updateRecordingsList();
+            
+            // If we're deleting the current recording, clear it
+            if (currentRecording && currentRecording.id === recordingId) {
+                currentRecording = null;
+                stopRecordingPlayback();
+                clearWaveform();
+            }
+        }
+        
+        function saveRecording() {
+            if (!currentRecording) {
+                alert('No recording to save');
+                return;
+            }
+            
+            // Add as a new track to the project
+            const newTrack = {
+                id: 'track_' + Math.random().toString(36).substr(2, 9),
+                name: currentRecording.name,
+                type: 'audio',
+                volume: 80,
+                muted: false,
+                solo: false,
+                audioUrl: currentRecording.audioUrl,
+                duration: currentRecording.duration
+            };
+            
+            currentProject.tracks.push(newTrack);
+            renderTrack(newTrack);
+            
+            alert(`Recording "${currentRecording.name}" saved to project!`);
+        }
+        
+        function startAudioVisualization() {
+            stopAudioVisualization();
+            
+            const canvas = document.getElementById('waveformCanvas');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            // Simulate visualization
+            audioVisualizationInterval = setInterval(() => {
+                canvasContext.fillStyle = '#1e293b';
+                canvasContext.fillRect(0, 0, width, height);
+                
+                canvasContext.lineWidth = 2;
+                canvasContext.strokeStyle = '#a78bfa';
+                canvasContext.beginPath();
+                
+                const sliceWidth = width / 100;
+                let x = 0;
+                
+                for (let i = 0; i < 100; i++) {
+                    const v = Math.random() * 0.5 + 0.25;
+                    const y = v * height;
+                    
+                    if (i === 0) {
+                        canvasContext.moveTo(x, y);
+                    } else {
+                        canvasContext.lineTo(x, y);
+                    }
+                    
+                    x += sliceWidth;
+                }
+                
+                canvasContext.lineTo(width, height / 2);
+                canvasContext.stroke();
+            }, 50);
+        }
+        
+        function stopAudioVisualization() {
+            if (audioVisualizationInterval) {
+                clearInterval(audioVisualizationInterval);
+                audioVisualizationInterval = null;
+            }
+        }
+        
+        function drawWaveform() {
+            if (!currentRecording) {
+                clearWaveform();
+                return;
+            }
+            
+            const canvas = document.getElementById('waveformCanvas');
+            const width = canvas.width;
+            const height = canvas.height;
+            
+            canvasContext.fillStyle = '#1e293b';
+            canvasContext.fillRect(0, 0, width, height);
+            
+            // Draw a simple waveform (in a real app, we'd analyze the actual audio)
+            canvasContext.lineWidth = 2;
+            canvasContext.strokeStyle = '#a78bfa';
+            canvasContext.beginPath();
+            
+            const sliceWidth = width / 100;
+            let x = 0;
+            
+            for (let i = 0; i < 100; i++) {
+                // Simulate waveform data
+                const v = Math.sin(i / 5) * (0.5 + Math.random() * 0.1);
+                const y = (v * height / 2) + height / 2;
+                
+                if (i === 0) {
+                    canvasContext.moveTo(x, y);
+                } else {
+                    canvasContext.lineTo(x, y);
+                }
+                
+                x += sliceWidth;
+            }
+            
+            canvasContext.stroke();
+            
+            // Update duration display
+            document.getElementById('recordingDuration').textContent = formatTime(currentRecording.duration);
+            document.getElementById('recordingPlayhead').max = currentRecording.duration;
+        }
+        
+        function clearWaveform() {
+            const canvas = document.getElementById('waveformCanvas');
+            canvasContext.fillStyle = '#1e293b';
+            canvasContext.fillRect(0, 0, canvas.width, canvas.height);
+            
+            document.getElementById('recordingDuration').textContent = '0:00';
+            document.getElementById('recordingPlayhead').value = 0;
+        }
+        
+        function formatTime(seconds) {
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            return `${mins}:${secs.toString().padStart(2, '0')}`;
+        }
+        
+        // Authentication functions
+        function checkAuthStatus() {
+            const userData = localStorage.getItem('beatcraft_user');
+            if (userData) {
+                currentUser = JSON.parse(userData);
+                updateAuthUI(true);
+            }
+        }
+        
+        function openAuthModal() {
+            document.getElementById('authModal').classList.remove('hidden');
+        }
+        
+        function closeAuthModal() {
+            document.getElementById('authModal').classList.add('hidden');
+        }
+        
+        function showRegisterForm() {
+            document.getElementById('loginForm').classList.add('hidden');
+            document.getElementById('registerForm').classList.remove('hidden');
+        }
+        
+        function showLoginForm() {
+            document.getElementById('registerForm').classList.add('hidden');
+            document.getElementById('loginForm').classList.remove('hidden');
+        }
+        
+        function login() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Please enter both email and password');
+                return;
+            }
+            
+            // Simulate API call
+            setTimeout(() => {
+                currentUser = {
+                    id: 'user_' + Math.random().toString(36).substr(2, 9),
+                    email: email,
+                    username: email.split('@')[0]
+                };
+                
+                localStorage.setItem('beatcraft_user', JSON.stringify(currentUser);
+                updateAuthUI(true);
+                closeAuthModal();
+                
+                // Clear form
+                document.getElementById('loginEmail').value = '';
+                document.getElementById('loginPassword').value = '';
+            }, 500);
+        }
+        
+        function register() {
+            const username = document.getElementById('registerUsername').value;
+            const email = document.getElementById('registerEmail').value;
+            const password = document.getElementById('registerPassword').value;
+            
+            if (!username || !email || !password) {
+                alert('Please fill in all fields');
+                return;
+            }
+            
+            // Simulate API call
+            setTimeout(() => {
+                currentUser = {
+                    id: 'user_' + Math.random().toString(36).substr(2, 9),
+                    email: email,
+                    username: username
+                };
+                
+                localStorage.setItem('beatcraft_user', JSON.stringify(currentUser));
+                updateAuthUI(true);
+                closeAuthModal();
+                
+                // Clear form
+                document.getElementById('registerUsername').value = '';
+                document.getElementById('registerEmail').value = '';
+                document.getElementById('registerPassword').value = '';
+            }, 500);
+        }
+        
+        function logout() {
+            currentUser = null;
+            localStorage.removeItem('beatcraft_user');
+            updateAuthUI(false);
+        }
+        
+        function updateAuthUI(isLoggedIn) {
+            if (isLoggedIn) {
+                document.getElementById('authButton').classList.add('hidden');
+                document.getElementById('userInfo').classList.remove('hidden');
+                document.getElementById('usernameDisplay').textContent = currentUser.username;
+            } else {
+                document.getElementById('authButton').classList.remove('hidden');
+                document.getElementById('userInfo').classList.add('hidden');
+            }
+        }
+        
+        // Project management functions
+        function newProject() {
+            if (!confirm('Are you sure you want to create a new project? Any unsaved changes will be lost.')) {
+                return;
+            }
+            
+            currentProject = {
+                name: 'Untitled Project',
+                bpm: 120,
+                tracks: []
+            };
+            
+            document.getElementById('bpm').value = 120;
+            document.getElementById('trackList').innerHTML = '';
+            
+            console.log('Created new project');
+        }
+        
+        function openSaveModal() {
+            if (!currentUser) {
+                alert('Please sign in to save your projects');
+                openAuthModal();
+                return;
+            }
+            
+            document.getElementById('projectName').value = currentProject.name;
+            document.getElementById('saveModal').classList.remove('hidden');
+        }
+        
+        function closeSaveModal() {
+            document.getElementById('saveModal').classList.add('hidden');
+        }
+        
+        function saveProject() {
+            const projectName = document.getElementById('projectName').value.trim();
+            
+            if (!projectName) {
+                alert('Please enter a project name');
+                return;
+            }
+            
+            currentProject.name = projectName;
+            currentProject.lastSaved = new Date().toISOString();
+            
+            // Simulate saving to cloud
+            setTimeout(() => {
+                let userProjects = JSON.parse(localStorage.getItem(`beatcraft_projects_${currentUser.id}`)) || [];
+                
+                // Check if this is an existing project
+                const existingIndex = userProjects.findIndex(p => p.id === currentProject.id);
+                
+                if (existingIndex >= 0) {
+                    // Update existing project
+                    userProjects[existingIndex] = currentProject;
+                } else {
+                    // Add new project
+                    currentProject.id = 'project_' + Math.random().toString(36).substr(2, 9);
+                    currentProject.created = new Date().toISOString();
+                    userProjects.push(currentProject);
+                }
+                
+                localStorage.setItem(`beatcraft_projects_${currentUser.id}`, JSON.stringify(userProjects));
+                closeSaveModal();
+                
+                console.log('Project saved:', currentProject);
+                alert(`Project "${currentProject.name}" saved successfully!`);
+            }, 800);
+        }
+        
+        function openLoadModal() {
+            if (!currentUser) {
+                alert('Please sign in to load your projects');
+                openAuthModal();
+                return;
+            }
+            
+            document.getElementById('loadModal').classList.remove('hidden');
+            loadUserProjects();
+        }
+        
+        function closeLoadModal() {
+            document.getElementById('loadModal').classList.add('hidden');
+        }
+        
+        function loadUserProjects() {
+            // Simulate loading from cloud
+            setTimeout(() => {
+                const userProjects = JSON.parse(localStorage.getItem(`beatcraft_projects_${currentUser.id}`)) || [];
+                const projectsList = document.getElementById('projectsList');
+                
+                if (userProjects.length === 0) {
+                    projectsList.innerHTML = `
+                        <div class="text-center py-10 text-slate-500">
+                            <i class="fas fa-folder-open text-3xl mb-3"></i>
+                            <p>No projects found. Create a new one!</p>
+                        </div>
+                    `;
+                    return;
+                }
+                
+                let html = '';
+                userProjects.forEach(project => {
+                    const date = new Date(project.lastSaved || project.created);
+                    const dateStr = date.toLocaleDateString();
+                    
+                    html += `
+                        <div class="project-item bg-slate-700 rounded-lg p-4 mb-3 flex justify-between items-center">
+                            <div>
+                                <h3 class="font-medium">${project.name}</h3>
+                                <p class="text-sm text-slate-400">Last saved: ${dateStr}</p>
+                            </div>
+                            <div class="flex space-x-2">
+                                <button onclick="loadProject('${project.id}')" class="bg-purple-600 hover:bg-purple-700 px-3 py-1 rounded text-sm">
+                                    Load
+                                </button>
+                                <button onclick="deleteProject('${project.id}')" class="bg-slate-600 hover:bg-red-600 px-3 py-1 rounded text-sm">
+                                    Delete
+                                </button>
+                            </div>
+                        </div>
+                    `;
+                });
+                
+                projectsList.innerHTML = html;
+            }, 500);
+        }
+        
+        function loadProject(projectId) {
+            // Simulate loading from cloud
+            setTimeout(() => {
+                const userProjects = JSON.parse(localStorage.getItem(`beatcraft_projects_${currentUser.id}`)) || [];
+                const project = userProjects.find(p => p.id === projectId);
+                
+                if (project) {
+                    currentProject = JSON.parse(JSON.stringify(project));
+                    document.getElementById('bpm').value = currentProject.bpm;
+                    
+                    // In a real app, we would rebuild the UI from the project data
+                    console.log('Loaded project:', currentProject);
+                    closeLoadModal();
+                    alert(`Project "${currentProject.name}" loaded successfully!`);
+                } else {
+                    alert('Error loading project');
+                }
+            }, 500);
+        }
+        
+        function deleteProject(projectId) {
+            if (!confirm('Are you sure you want to delete this project? This cannot be undone.')) {
+                return;
+            }
+            
+            // Simulate deleting from cloud
+            setTimeout(() => {
+                let userProjects = JSON.parse(localStorage.getItem(`beatcraft_projects_${currentUser.id}`)) || [];
+                userProjects = userProjects.filter(p => p.id !== projectId);
+                
+                localStorage.setItem(`beatcraft_projects_${currentUser.id}`, JSON.stringify(userProjects));
+                loadUserProjects();
+                
+                console.log('Deleted project:', projectId);
+            }, 500);
+        }
+        
+        // Transport control functions
+        function initTransportControls() {
+            // Playhead scrubbing
+            const playhead = document.getElementById('playhead');
+            playhead.addEventListener('input', function() {
+                // Update visual position
+                // In a real app, this would also seek the audio playback
+            });
+            
+            // Time display update (simulated)
+            setInterval(() => {
+                if (isPlaying) {
+                    const currentTime = document.getElementById('currentTime');
+                    const totalTime = document.getElementById('totalTime');
+                    
+                    // Simulate time progression
+                    const currentSeconds = parseInt(currentTime.textContent.split(':')[1]) || 0;
+                    const newSeconds = (currentSeconds + 1) % 60;
+                    const newMinutes = Math.floor((currentSeconds + 1) / 60);
+                    
+                    currentTime.textContent = `${newMinutes}:${newSeconds.toString().padStart(2, '0')}`;
+                    
+                    // Update playhead position
+                    const playhead = document.getElementById('playhead');
+                    const newPosition = (parseInt(playhead.value) + 1) % 101;
+                    playhead.value = newPosition;
+                    
+                    // Loop if enabled
+                    if (isLooping && newPosition >= 100) {
+                        playhead.value = 0;
+                        currentTime.textContent = '0:00';
+                    }
+                }
+            }, 1000); // Update every second (simplified)
+        }
+        
+        function startPlayback() {
+            if (isPlaying) return;
+            
+            isPlaying = true;
+            console.log('Playback started');
+            
+            // In a real app, this would start the audio scheduler
+        }
+        
+        function stopPlayback() {
+            if (!isPlaying) return;
+            
+            isPlaying = false;
+            console.log('Playback stopped');
+            
+            // Reset playhead
+            document.getElementById('playhead').value = 0;
+            document.getElementById('currentTime').textContent = '0:00';
+            
+            // In a real app, this would stop all audio
+        }
+        
+        function toggleLoop() {
+            isLooping = !isLooping;
+            const loopBtn = document.getElementById('loopBtn');
+            
+            if (isLooping) {
+                loopBtn.classList.add('text-purple-500');
+                loopBtn.classList.remove('text-slate-300');
+            } else {
+                loopBtn.classList.remove('text-purple-500');
+                loopBtn.classList.add('text-slate-300');
+            }
+            
+            console.log('Loop', isLooping ? 'enabled' : 'disabled');
+        }
+        
+        function toggleRecording() {
+            isRecording = !isRecording;
+            const recordBtn = document.getElementById('recordBtn');
+            
+            if (isRecording) {
+                recordBtn.classList.add('text-red-500', 'recording');
+                console.log('Recording started');
+            } else {
+                recordBtn.classList.remove('text-red-500', 'recording');
+                console.log('Recording stopped');
+            }
+        }
+        
+        function toggleMetronome() {
+            isMetronomeOn = !isMetronomeOn;
+            const metronomeBtn = document.getElementById('metronomeBtn');
+            
+            if (isMetronomeOn) {
+                metronomeBtn.classList.add('text-purple-500');
+                metronomeBtn.classList.remove('text-slate-300');
+                console.log('Metronome enabled');
+            } else {
+                metronomeBtn.classList.remove('text-purple-500');
+                metronomeBtn.classList.add('text-slate-300');
+                console.log('Metronome disabled');
+            }
+        }
+        
+        function updateBPM() {
+            const bpm = parseInt(document.getElementById('bpm').value);
+            if (bpm >= 40 && bpm <= 300) {
+                currentProject.bpm = bpm;
+                console.log('BPM set to', bpm);
+            }
+        }
+        
+        function updateMasterVolume() {
+            const volume = parseInt(document.getElementById('masterVolume').value) / 100;
+            console.log('Master volume set to', volume);
+            
+            // In a real app, this would update the gain node for the master output
+        }
+        
+        // Piano Roll functions
+        function initPianoRoll() {
+            // Create piano keys
+            const pianoKeys = document.createElement('div');
+            pianoKeys.className = 'piano-keys';
+            
+            // Notes from C1 to C6
+            const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            const octaves = [1, 2, 3, 4, 5, 6];
+            
+            // Create virtual keyboard
+            const virtualKeyboard = document.createElement('div');
+            virtualKeyboard.className = 'virtual-keyboard flex flex-wrap justify-center gap-1';
+            
+            octaves.forEach(octave => {
+                notes.forEach(note => {
+                    if (note.length === 1 || (note.includes('#') && !note.includes('B#'))) {
+                        const fullNote = note + octave;
+                        
+                        // Add to piano keys (vertical)
+                        const key = document.createElement('div');
+                        key.className = `piano-key ${note.includes('#') ? 'black h-8 w-6 -ml-3 -mr-3' : 'white h-10 w-8 border border-slate-700'}`;
+                        key.textContent = fullNote;
+                        key.dataset.note = fullNote;
+                        key.addEventListener('mousedown', () => playNote(fullNote));
+                        pianoKeys.appendChild(key);
+                        
+                        // Add to virtual keyboard (horizontal)
+                        if (!note.includes('#')) {
+                            const vKey = document.createElement('button');
+                            vKey.className = `piano-key ${note.includes('#') ? 'black h-16 w-8' : 'white h-20 w-10 border border-slate-700'}`;
+                            vKey.textContent = fullNote;
+                            vKey.dataset.note = fullNote;
+                            vKey.addEventListener('mousedown', () => playNote(fullNote));
+                            vKey.addEventListener('mouseup', () => stopNote(fullNote));
+                            vKey.addEventListener('mouseleave', () => stopNote(fullNote));
+                            virtualKeyboard.appendChild(vKey);
+                        }
+                    }
+                });
+            });
+            
+            document.querySelector('.piano-keys').replaceWith(pianoKeys);
+            document.querySelector('.virtual-keyboard').replaceWith(virtualKeyboard);
+            
+            // Create piano roll grid
+            const pianoRollGrid = document.createElement('div');
+            pianoRollGrid.className = 'piano-roll-grid relative';
+            pianoRollGrid.style.height = `${notes.length * octaves.length * 16}px`; // Approximate height
+            
+            // Add measure markers
+            for (let i = 0; i < 16; i++) {
+                const measure = document.createElement('div');
+                measure.className = 'absolute bg-slate-800 border-r border-slate-700';
+                measure.style.left = `${i * 6.25}%`;
+                measure.style.width = '1px';
+                measure.style.height = '100%';
+                pianoRollGrid.appendChild(measure);
+            }
+            
+            document.querySelector('.piano-roll-grid').replaceWith(pianoRollGrid);
+        }
+        
+        function openPianoRoll() {
+            document.getElementById('pianoRoll').classList.remove('hidden');
+        }
+        
+        function closePianoRoll() {
+            document.getElementById('pianoRoll').classList.add('hidden');
+        }
+        
+        function playNote(note) {
+            console.log('Playing note:', note);
+            // In a real app, this would play the note using Web Audio API
+        }
+        
+        function stopNote(note) {
+            console.log('Stopping note:', note);
+            // In a real app, this would stop the note
+        }
+        
+        // Utility functions
+        function addTrack() {
+            const trackId = 'track_' + Math.random().toString(36).substr(2, 9);
+            const newTrack = {
+                id: trackId,
+                name: 'New Track',
+                type: 'syn
+</html>
